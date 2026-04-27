@@ -1,4 +1,4 @@
-import { kafkaClient } from "./kafka-client";
+import { kafkaClient } from "./kafka-client.js";
 
 async function setup() {
   const admin = kafkaClient.admin();
@@ -17,3 +17,6 @@ async function setup() {
 
   await admin.disconnect()
 }
+
+
+setup()
