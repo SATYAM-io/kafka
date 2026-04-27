@@ -3,12 +3,11 @@ import path from "node:path";
 
 import express from "express";
 import { Server, Socket } from "socket.io";
-import { KafkaJSDeleteGroupsError } from "kafkajs";
+
 import { kafkaClient } from "./kafka-client.js";
 import { json } from "node:stream/consumers";
 
-const kafkaProducer = kafkaClient.producer();
-await kafkaProducer.connect();
+
 
 async function main() {
   const PORT = process.env.PORT ?? 8000;
@@ -16,6 +15,29 @@ async function main() {
   const server = http.createServer(app);
   const io = new Server();
   io.attach(server);
+
+  const kafkaProducer = kafkaClient.producer();
+await kafkaProducer.connect();
+
+const kafkaConsumer = kafkaClient.consumer({
+  groupId: `socket-server-${PORT}`,
+});
+await kafkaConsumer.connect();
+
+await kafkaConsumer.subscribe({
+  topics: ["location-updates"],
+  fromBeginning: true,
+});
+
+kafkaConsumer.run({
+    eachMessage: async({topic, partition, message, heartbeat}) => {
+        const data = JSON.parse(message.value.toString())
+        console.log(`kafkaconsumer data received`, { data });
+        io.emit('server:location:update', { id: data.id, latitude: data.latitude, longitude: data.longitude })
+        await heartbeat();
+        
+    }
+})
 
   io.on("connection", (socket) => {
     console.log(`[socket: ${socket.id}]: connected success...`);
